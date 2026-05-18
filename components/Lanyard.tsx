@@ -113,14 +113,21 @@ function HolographicFoil() {
 }
 
 export default function Lanyard({ position = [0, 0, 13], gravity = [0, -40, 0], fov = 25, transparent = true }: LanyardProps) {
-  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' && window.innerWidth < 768);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { t } = useLanguage();
 
   useEffect(() => {
+    setMounted(true);
+    setIsMobile(window.innerWidth < 768);
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  if (!mounted) {
+    return <div className="lanyard-wrapper" />;
+  }
 
   return (
     <div className="lanyard-wrapper">
