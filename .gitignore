@@ -10,9 +10,7 @@ build/
 dist/
 
 # Editor / IDE caches & settings
-.vscode/*
-!.vscode/settings.json
-!.vscode/extensions.json
+.vscode/
 .idea/
 *.suo
 *.ntvs*
