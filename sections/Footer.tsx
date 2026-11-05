@@ -28,7 +28,7 @@ export function Footer() {
           className="flex flex-col items-center"
         >
           <span className="mb-4 text-xs tracking-[0.4em] text-blood uppercase">{t('footer.shutdown')}</span>
-          <h2 className="font-display text-5xl sm:text-7xl lg:text-8xl uppercase leading-none tracking-tight text-white shadow-[0_0_40px_rgba(255,255,255,0.1)]">
+          <h2 className="font-display text-4xl sm:text-6xl md:text-7xl lg:text-8xl uppercase leading-none tracking-tight text-white shadow-[0_0_40px_rgba(255,255,255,0.1)]">
             {t('footer.nextLayerPrefix')} <br />
             <span className="text-blood mix-blend-screen">{t('footer.nextLayerHighlight')}</span>
           </h2>

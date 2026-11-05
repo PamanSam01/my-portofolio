@@ -4,17 +4,20 @@
 
 @layer base {
   :root {
-    --color-ink: #050505;
+    --font-bebas: 'Bebas Neue', Impact, sans-serif;
+    --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+    --color-ink: #0a0607;
     --color-bone: #f7f3ea;
-    --color-blood: #e50914;
+    --color-blood: #ff3838;
   }
 
-  body {
+  html, body {
     background-color: var(--color-ink);
     color: var(--color-bone);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    max-width: 100%;
     font-family: var(--font-inter), sans-serif;
   }
 
@@ -127,34 +130,8 @@
 
 /* Cinematic Background per Section */
 .cinematic-bg {
-  background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.78)), url('/background/mobile.png');
-  background-position: center top;
-  background-size: cover;
-  background-repeat: no-repeat;
-}
-@media (min-width: 768px) and (orientation: portrait) {
-  .cinematic-bg {
-    background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.78)), url('/background/tablet-portrait.png');
-    background-position: center center;
-  }
-}
-@media (min-width: 768px) and (orientation: landscape) {
-  .cinematic-bg {
-    background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.78)), url('/background/tablet-landscape.png');
-    background-position: center center;
-  }
-}
-@media (min-width: 1280px) {
-  .cinematic-bg {
-    background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.78)), url('/background/laptop.png');
-    background-position: center center;
-  }
-}
-@media (min-width: 1920px) {
-  .cinematic-bg {
-    background-image: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.78)), url('/background/ultrawide.png');
-    background-position: center center;
-  }
+  background-color: #0a0607;
+  background-image: radial-gradient(circle at 50% 0%, rgba(255, 56, 56, 0.08), transparent 70%);
 }
 
 /* GPU Compositing & Backdrop Filter Acceleration */
@@ -170,8 +147,48 @@
 }
 
 /* Optimized Will-Change Rules for Critical Animations */
-.hero-slice, .glitch, .loader-slice, .loader-mark, .comic-btn, .global-bg {
+.hero-slice, .glitch {
   will-change: transform, opacity;
+}
+
+/* Chakra Glow & Naruto Micro-Interactions */
+@keyframes chakra-pulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(255, 56, 56, 0.3), 0 0 30px rgba(255, 120, 68, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(255, 56, 56, 0.6), 0 0 45px rgba(255, 120, 68, 0.35);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes float-subtle {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-6px) rotate(2deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 16s linear infinite;
+}
+
+.animate-chakra-pulse {
+  animation: chakra-pulse 3.5s ease-in-out infinite;
+}
+
+.animate-float-subtle {
+  animation: float-subtle 4s ease-in-out infinite;
 }
 
 /* Accessibility: Support Prefers Reduced Motion */
@@ -187,14 +204,14 @@
   .glitch::after {
     display: none !important;
   }
-  .animate-marquee {
+  .animate-marquee,
+  .animate-spin-slow,
+  .animate-chakra-pulse,
+  .animate-float-subtle {
     animation: none !important;
     transform: none !important;
   }
-  .hero-slice, .loader-slice {
+  .hero-slice {
     transform: none !important;
-  }
-  .loader-mark {
-    animation: none !important;
   }
 }

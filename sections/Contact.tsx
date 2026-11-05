@@ -108,7 +108,7 @@ export function Contact() {
   };
 
   return (
-    <section id="contact" className="relative z-10 px-5 py-16 md:py-28 sm:px-8 lg:px-14 cinematic-bg">
+    <section id="contact" className="relative z-10 px-5 py-20 md:py-32 sm:px-8 lg:px-14 bg-[#080506] border-t border-[#ff3838]/15">
       <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-start relative z-10">
         <div>
           <SectionHeading kicker={t('contact.kicker')} title={t('contact.title')} />
@@ -143,36 +143,36 @@ export function Contact() {
                 
                 <div className="grid gap-5 md:grid-cols-2">
                   <label className="group block">
-                    <span className="font-display text-2xl uppercase text-blood">{t('contact.nameLabel')}</span>
+                    <span className="font-display text-xl sm:text-2xl uppercase text-blood">{t('contact.nameLabel')}</span>
                     <input 
                       required
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder={t('contact.namePlaceholder')} 
-                      className="mt-2 w-full border-2 border-bone/25 bg-bone/5 px-4 py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-base" 
+                      className="mt-2 w-full border-2 border-bone/25 bg-bone/5 px-3.5 sm:px-4 py-3 sm:py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-sm sm:text-base" 
                     />
                   </label>
                   <label className="group block">
-                    <span className="font-display text-2xl uppercase text-blood">{t('contact.emailLabel')}</span>
+                    <span className="font-display text-xl sm:text-2xl uppercase text-blood">{t('contact.emailLabel')}</span>
                     <input 
                       required
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder={t('contact.emailPlaceholder')} 
-                      className="mt-2 w-full border-2 border-bone/25 bg-bone/5 px-4 py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-base" 
+                      className="mt-2 w-full border-2 border-bone/25 bg-bone/5 px-3.5 sm:px-4 py-3 sm:py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-sm sm:text-base" 
                     />
                   </label>
                 </div>
                 <label className="group mt-5 block">
-                  <span className="font-display text-2xl uppercase text-blood">{t('contact.msgLabel')}</span>
+                  <span className="font-display text-xl sm:text-2xl uppercase text-blood">{t('contact.msgLabel')}</span>
                   <textarea 
                     required
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
                     placeholder={t('contact.msgPlaceholder')} 
                     rows={5} 
-                    className="mt-2 w-full resize-none border-2 border-bone/25 bg-bone/5 px-4 py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-base" 
+                    className="mt-2 w-full resize-none border-2 border-bone/25 bg-bone/5 px-3.5 sm:px-4 py-3 sm:py-4 text-bone outline-none transition group-focus-within:border-blood group-focus-within:bg-bone/10 placeholder:text-bone/20 font-mono text-sm sm:text-base" 
                   />
                 </label>
                 <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
@@ -180,7 +180,7 @@ export function Contact() {
                     whileHover={{ skewX: -8, scale: 1.03 }}
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    className="inline-flex items-center gap-3 border-2 border-bone bg-blood px-7 py-4 font-display text-2xl uppercase text-white shadow-slash"
+                    className="inline-flex items-center gap-2.5 sm:gap-3 border-2 border-bone bg-blood px-5 sm:px-7 py-3 sm:py-4 font-display text-xl sm:text-2xl uppercase text-white shadow-slash cursor-pointer"
                   >
                     <Send className="h-5 w-5" /> {t('contact.sendBtn')}
                   </motion.button>

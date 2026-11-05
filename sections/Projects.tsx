@@ -1,437 +1,659 @@
 "use client";
 
-import { useState } from "react";
-import type { CSSProperties } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ExternalLink, Github, ChevronLeft, ChevronRight, Lock } from "lucide-react";
-import { SectionHeading } from "@/components/SectionHeading";
-import { projects } from "@/lib/data";
+import {
+  ExternalLink,
+  Search,
+  Sparkles,
+  Maximize2,
+  X,
+  CheckCircle2,
+  Globe,
+  Layers,
+  ArrowRight,
+  MousePointer2,
+  Monitor,
+  RefreshCw,
+} from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import {
+  KonohaLeafIcon,
+  ShurikenIcon,
+  SealingStamp,
+  CloudWatermark,
+} from "@/components/ornaments/KonohaIcons";
+import { projects } from "@/lib/data";
+
+export interface ProjectShowcaseItem {
+  id: string;
+  title: string;
+  category: string;
+  tagline: { en: string; id: string };
+  tags: { en: string[]; id: string[] };
+  description: { en: string; id: string };
+  features: { en: string[]; id: string[] };
+  url: string;
+  previewImage: string;
+  status: string;
+  year: string;
+  chapter: string;
+  sealKanji: string;
+}
+
+export const liveProjectsData: ProjectShowcaseItem[] = [
+  {
+    ...projects[0],
+    chapter: "巻ノ一",
+    sealKanji: "創",
+  },
+  {
+    ...projects[1],
+    chapter: "巻ノ二",
+    sealKanji: "探",
+  },
+  {
+    ...projects[2],
+    chapter: "巻ノ三",
+    sealKanji: "術",
+  },
+  {
+    ...projects[3],
+    chapter: "巻ノ四",
+    sealKanji: "基",
+  },
+  {
+    ...projects[4],
+    chapter: "巻ノ五",
+    sealKanji: "極",
+  },
+];
 
 export function Projects() {
+  const { lang } = useLanguage();
   const [activeCategory, setActiveCategory] = useState("All");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [direction, setDirection] = useState(1);
-  const { t, lang } = useLanguage();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProject, setSelectedProject] = useState<ProjectShowcaseItem | null>(null);
+  const [interactiveCards, setInteractiveCards] = useState<Record<string, boolean>>({});
+  const [loadedIframes, setLoadedIframes] = useState<Record<string, boolean>>({});
+
+  // Close modal on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedProject(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const categories = [
-    { id: "All", labelKey: "projects.filterAll" },
-    { id: "Web3", labelKey: "projects.filterWeb3" },
-    { id: "AI", labelKey: "projects.filterAI" },
-    { id: "SaaS", labelKey: "projects.filterSaaS" },
-    { id: "Business", labelKey: "projects.filterBusiness" },
-    { id: "Creative", labelKey: "projects.filterCreative" },
-    { id: "Experimental", labelKey: "projects.filterExperimental" },
+    { id: "All", labelEn: "All Projects", labelId: "Semua Proyek" },
+    { id: "Web3", labelEn: "Web3 & Protocols", labelId: "Web3 & Protokol" },
+    { id: "AI", labelEn: "AI & Cultural Tech", labelId: "AI & Teknologi Kultur" },
   ];
 
-  const filteredProjects = projects.filter(
-    (p) => (activeCategory === "All" || p.category === activeCategory) && !(p as any).locked
-  );
-
-  const handleNext = () => {
-    setDirection(1);
-    setCurrentIndex((prev) => (prev + 1) % filteredProjects.length);
+  const getCategoryCount = (catId: string) => {
+    if (catId === "All") return liveProjectsData.length;
+    return liveProjectsData.filter((p) => p.category === catId).length;
   };
 
-  const handlePrev = () => {
-    setDirection(-1);
-    setCurrentIndex((prev) => (prev - 1 + filteredProjects.length) % filteredProjects.length);
-  };
+  const filteredProjects = useMemo(() => {
+    return liveProjectsData.filter((item) => {
+      const matchesCategory =
+        activeCategory === "All" || item.category === activeCategory;
 
-  const setCategory = (cat: string) => {
-    setDirection(1);
-    setActiveCategory(cat);
-    setCurrentIndex(0);
-  };
+      if (!matchesCategory) return false;
 
-  const project = filteredProjects[currentIndex];
+      if (!searchQuery.trim()) return true;
 
-  const variants = {
-    enter: (dir: number) => ({
-      x: dir > 0 ? 40 : -40,
-      opacity: 0,
-      filter: "blur(8px)",
-      scale: 0.97
-    }),
-    center: {
-      x: 0,
-      opacity: 1,
-      filter: "blur(0px)",
-      scale: 1
-    },
-    exit: (dir: number) => ({
-      x: dir < 0 ? 40 : -40,
-      opacity: 0,
-      filter: "blur(8px)",
-      scale: 0.97
-    })
+      const q = searchQuery.toLowerCase();
+      const title = item.title.toLowerCase();
+      const descEn = item.description.en.toLowerCase();
+      const descId = item.description.id.toLowerCase();
+      const tagsEn = item.tags.en.join(" ").toLowerCase();
+      const tagsId = item.tags.id.join(" ").toLowerCase();
+
+      return (
+        title.includes(q) ||
+        descEn.includes(q) ||
+        descId.includes(q) ||
+        tagsEn.includes(q) ||
+        tagsId.includes(q)
+      );
+    });
+  }, [activeCategory, searchQuery]);
+
+  const toggleInteractive = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setInteractiveCards((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
   };
 
   return (
-    <section id="projects" className="relative z-10 overflow-hidden px-5 py-16 md:py-28 sm:px-8 lg:px-14 cinematic-bg">
-      {/* Manga-Panel Tactical Wipe Transition */}
-      <motion.div 
-        initial={{ scaleY: 1 }}
-        whileInView={{ scaleY: 0 }}
-        viewport={{ once: true, margin: "0px 0px -200px 0px" }}
-        transition={{ duration: 0.8, ease: [0.83, 0, 0.17, 1] }}
-        className="absolute inset-0 z-[60] origin-top bg-blood"
-      />
-      <motion.div 
-        initial={{ scaleY: 1 }}
-        whileInView={{ scaleY: 0 }}
-        viewport={{ once: true, margin: "0px 0px -200px 0px" }}
-        transition={{ duration: 0.8, delay: 0.1, ease: [0.83, 0, 0.17, 1] }}
-        className="absolute inset-0 z-[60] origin-top bg-white"
-      />
+    <section
+      id="projects"
+      className="relative z-10 overflow-hidden px-5 py-20 md:py-32 sm:px-8 lg:px-14 bg-[#080506] border-t border-[#ff3838]/15"
+    >
+      {/* Anchor aliases for navigation compatibility */}
+      <div id="catatan-misi" className="absolute top-0 pointer-events-none" />
+      <div id="mission-notes" className="absolute top-0 pointer-events-none" />
+
+      {/* Atmospheric ambient glow */}
+      <div className="absolute top-1/4 left-0 w-[550px] h-[550px] bg-[#ff3838]/5 rounded-full blur-[160px] pointer-events-none" />
+      <div className="absolute bottom-1/3 right-0 w-[550px] h-[550px] bg-[#ff7844]/5 rounded-full blur-[160px] pointer-events-none" />
 
       <div className="relative mx-auto max-w-7xl z-10">
-        <SectionHeading kicker={t('projects.kicker')} title={t('projects.title')} />
-        
-        {/* Cyberpunk Filter System */}
-        <div className="mt-12 flex flex-wrap items-center gap-3 border-b-2 border-bone/20 pb-6">
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              onClick={() => setCategory(cat.id)}
-              className={`relative px-5 py-2 font-display text-xl uppercase tracking-wider transition-colors duration-300 ${
-                activeCategory === cat.id ? "text-bone" : "text-bone/40 hover:text-bone/80"
-              }`}
-            >
-              {activeCategory === cat.id && (
-                <motion.div
-                  layoutId="activeTab"
-                  className="absolute inset-0 -z-10 bg-blood shadow-redline"
-                  transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                />
-              )}
-              <span className="relative z-10">{t(cat.labelKey)}</span>
-            </button>
-          ))}
-        </div>
+        {/* ========================================================
+            SECTION HEADING: Japanese Subtitle + Main Title + Desc
+            ======================================================== */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12 sm:mb-16">
+          <div className="flex flex-col items-start max-w-2xl">
+            <div className="flex items-center gap-2.5 mb-2.5">
+              <span className="h-[2px] w-8 bg-[#ff3838]" />
+              <span className="text-xs sm:text-sm font-semibold tracking-[0.25em] text-[#ff3838] uppercase drop-shadow-[0_0_10px_rgba(255,56,56,0.7)] flex items-center gap-1.5">
+                <ShurikenIcon className="w-3.5 h-3.5 text-[#ff7844] animate-spin-slow" />
+                <span>プロジェクト実績 • LIVE SHINOBI SHOWCASE</span>
+              </span>
+              <span className="h-[2px] w-8 bg-[#ff3838]" />
+            </div>
 
-        {/* Project Navigation Controls */}
-        <div className="mt-8 flex items-center justify-between gap-4 w-full border-t border-bone/10 pt-6">
-          <div className="flex gap-3">
-            <button onClick={handlePrev} className="manga-border group grid h-14 w-14 place-items-center bg-ink transition-colors hover:bg-blood">
-              <ChevronLeft className="h-6 w-6 text-bone transition-transform group-hover:-translate-x-1" />
-            </button>
-            <button onClick={handleNext} className="manga-border group grid h-14 w-14 place-items-center bg-ink transition-colors hover:bg-blood">
-              <ChevronRight className="h-6 w-6 text-bone transition-transform group-hover:translate-x-1" />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-4">
-             <div className="font-display text-5xl text-blood">
-               {String(currentIndex + 1).padStart(2, '0')}
-               <span className="text-3xl text-bone/40">/{String(filteredProjects.length).padStart(2, '0')}</span>
-             </div>
-             <div className="h-1.5 w-32 bg-bone/20">
-               <motion.div 
-                 className="h-full bg-blood" 
-                 initial={{ width: 0 }}
-                 animate={{ width: `${((currentIndex + 1) / (filteredProjects.length || 1)) * 100}%` }}
-                 transition={{ duration: 0.3 }}
-               />
-             </div>
-          </div>
-        </div>
+            <h2 className="text-3xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-white font-display">
+              {lang === "id" ? "Catatan Misi & Proyek" : "Live Projects & Mission Showcase"}
+            </h2>
 
-        {/* Dynamic Project Showcase */}
-        <div className="relative mt-10 w-full overflow-hidden min-h-0 h-auto lg:h-[42rem] lg:min-h-[42rem]">
-          <AnimatePresence custom={direction}>
-            {project && (
-              <motion.article
-                key={project.title}
-                custom={direction}
-                variants={variants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                className="group relative lg:absolute lg:inset-0 flex flex-col lg:grid lg:grid-cols-[1.05fr_0.95fr] overflow-hidden border-2 border-bone bg-ink/88 shadow-redline backdrop-blur"
+            <p className="mt-4 text-sm sm:text-base text-zinc-400 leading-relaxed">
+              {lang === "id"
+                ? "Showcase interaktif dari lima proyek dan protokol nyata yang aktif dideploy oleh Ferdy Afrizal (PamanSam): mencakup video generatif Monad, identitas finansial Arc, tabungan tergamifikasi Ritual, perencana rute kultur Qloo, dan paspor profesional Sui."
+                : "An interactive portfolio showcase featuring five active production protocols and web applications engineered by Ferdy Afrizal (PamanSam)—complete with live embedded previews and authentic verified architectures."}
+            </p>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative w-full md:w-80 shrink-0">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={lang === "id" ? "Cari proyek, stack, protokol..." : "Search project, stack, chain..."}
+              className="w-full pl-10 pr-9 py-2 rounded-xl bg-black/60 border border-white/10 hover:border-[#ff3838]/40 focus:border-[#ff3838] focus:outline-none focus:ring-1 focus:ring-[#ff3838] text-xs sm:text-sm font-mono text-zinc-200 placeholder:text-zinc-500 transition-all"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white cursor-pointer"
+                aria-label="Clear search"
               >
-                {/* Left Side: Visual Preview */}
-                <div className="relative h-[200px] sm:h-[300px] lg:h-full w-full overflow-hidden shrink-0 border-b border-bone/20 lg:border-b-0 lg:border-r lg:border-bone/20">
-                  {"previewType" in project && project.previewType === "dashboard" && project.livePreviewUrl ? (
-                    <motion.div
-                      className="absolute inset-0 bg-ink p-3 md:p-6"
-                      whileHover={{ scale: 1.03 }}
-                      transition={{ duration: 0.5, ease: "easeOut" }}
-                    >
-                       <div className="group/frame relative h-full w-full overflow-hidden border border-bone/30 bg-black shadow-[0_0_40px_rgba(229,9,20,0.15)] transition-all duration-500 hover:border-blood/50 hover:shadow-[0_0_60px_rgba(229,9,20,0.3)]">
-                          {/* Browser Header Bar */}
-                          <div className="flex h-8 items-center gap-2 border-b border-bone/20 bg-ink px-4">
-                             <div className="h-2.5 w-2.5 rounded-full bg-blood/80 transition-colors duration-300 group-hover/frame:bg-blood" />
-                             <div className="h-2.5 w-2.5 rounded-full bg-bone/30 transition-colors duration-300 group-hover/frame:bg-bone/50" />
-                             <div className="h-2.5 w-2.5 rounded-full bg-bone/30 transition-colors duration-300 group-hover/frame:bg-bone/50" />
-                             <div className="ml-auto font-display text-[10px] uppercase tracking-widest text-bone/40">{lang === 'id' ? 'Umpan Langsung' : 'Live Feed'}</div>
-                          </div>
-                          {/* Iframe Preview */}
-                          <div className="relative h-[calc(100%-2rem)] w-full overflow-hidden">
-                            <iframe 
-                              src={project.livePreviewUrl} 
-                              className="pointer-events-none absolute left-0 top-0 h-[200%] w-[200%] origin-top-left scale-50 border-none opacity-85 transition-opacity duration-500 group-hover/frame:opacity-100" 
-                              tabIndex={-1} 
-                              loading="lazy"
-                            />
-                            {/* Scanlines & Holographic overlays */}
-                            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:100%_4px]" />
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-blood/10 via-transparent to-transparent opacity-60 transition-opacity duration-500 group-hover/frame:opacity-30" />
-                            <div className="pointer-events-none absolute inset-0 shadow-[inset_0_0_40px_rgba(5,5,5,0.9)]" />
-                          </div>
-                       </div>
-                    </motion.div>
-                  ) : "previewType" in project && project.previewType === "gateway" && project.livePreviewUrl ? (
-                    <motion.div
-                      className="absolute inset-0 flex items-center justify-center bg-ink p-4 md:p-8"
-                      whileHover={{ scale: 1.04 }}
-                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                       <div className="group/gateway relative h-[90%] w-[90%] overflow-hidden rounded-xl border border-bone/20 bg-black/50 shadow-[0_0_30px_rgba(229,9,20,0.1)] backdrop-blur-md transition-all duration-700 hover:border-bone/50 hover:bg-black/80 hover:shadow-[0_0_80px_rgba(255,255,255,0.15)]">
-                          {/* Gateway Holographic Accents */}
-                          <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-bone/50 to-transparent opacity-50" />
-                          <div className="absolute inset-y-0 left-0 w-px bg-gradient-to-b from-transparent via-blood/80 to-transparent opacity-50" />
-                          
-                          {/* Corner Accents */}
-                          <div className="absolute -left-2 -top-2 h-4 w-4 border-b border-r border-blood opacity-80" />
-                          <div className="absolute -bottom-2 -right-2 h-4 w-4 border-l border-t border-bone opacity-80" />
-
-                          {/* Animated Light Sweep (Glassmorphism overlay) */}
-                          <div className="pointer-events-none absolute -inset-full z-20 block h-[300%] w-[50%] -translate-x-[150%] -rotate-45 bg-gradient-to-r from-transparent via-white/5 to-transparent transition-transform duration-[1.5s] ease-in-out group-hover/gateway:translate-x-[350%]" />
-
-                          {/* Iframe Preview */}
-                          <div className="relative h-full w-full overflow-hidden rounded-lg">
-                            <iframe 
-                              src={project.livePreviewUrl} 
-                              className="pointer-events-none absolute left-1/2 top-1/2 h-[150%] w-[150%] -translate-x-1/2 -translate-y-1/2 scale-[0.65] border-none opacity-80 transition-all duration-700 group-hover/gateway:scale-[0.7] group-hover/gateway:opacity-100" 
-                              tabIndex={-1} 
-                              loading="lazy"
-                            />
-                            {/* Holographic / Cyan-Red Vignette Overlay specific to Arc Pass auth */}
-                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(5,5,5,0.8)_100%)] transition-opacity duration-700 group-hover/gateway:opacity-40" />
-                            <div className="pointer-events-none absolute inset-0 mix-blend-overlay shadow-[inset_0_0_50px_rgba(229,9,20,0.2)]" />
-                          </div>
-                          
-                          {/* Access Terminal Text Banner */}
-                          <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full border border-bone/20 bg-ink/80 px-4 py-1.5 backdrop-blur-sm">
-                            <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blood" />
-                            <span className="font-display text-[10px] uppercase tracking-[0.3em] text-bone/60">{lang === 'id' ? 'Gateway Arc Aktif' : 'Arc Gateway Active'}</span>
-                          </div>
-                       </div>
-                    </motion.div>
-                  ) : "previewType" in project && project.previewType === "identity" && ("livePreviewUrl" in project || "previewImage" in project) ? (
-                    <motion.div
-                      className="absolute inset-0 flex items-center justify-center overflow-hidden bg-[radial-gradient(ellipse_at_center,#1a0b0c_0%,#050505_100%)] p-4 md:p-8"
-                      whileHover={{ scale: 1.04 }}
-                      transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                    >
-                       {/* Wide Cinematic UI Panel */}
-                       <div className="group/identity relative flex h-[90%] w-[90%] shrink-0 flex-col overflow-hidden rounded-xl border border-blood/30 bg-black/80 shadow-[0_0_50px_rgba(229,9,20,0.15)] backdrop-blur-xl transition-all duration-700 hover:border-blood/60 hover:shadow-[0_0_100px_rgba(229,9,20,0.3)]">
-                          
-                          {/* Panel Header */}
-                          <div className="relative z-30 flex h-10 w-full shrink-0 items-center justify-between border-b border-blood/20 bg-ink/90 px-5 backdrop-blur-md">
-                             <div className="flex items-center gap-3">
-                                <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blood shadow-redline" />
-                                <span className="font-display text-[10px] uppercase tracking-[0.3em] text-blood/80">GIWA_SECURE_TERMINAL</span>
-                             </div>
-                             <div className="flex gap-1.5">
-                                <div className="h-1 w-5 bg-bone/30" />
-                                <div className="h-1 w-5 bg-bone/30" />
-                             </div>
-                          </div>
-
-                          {/* Interface Content */}
-                          <div className="relative h-full w-full overflow-hidden bg-black">
-                            {"livePreviewUrl" in project && project.livePreviewUrl ? (
-                              <div className="absolute left-1/2 top-1/2 h-[844px] w-[390px] -translate-x-1/2 -translate-y-1/2 scale-[0.65] transition-transform duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/identity:scale-[0.7]">
-                                <iframe 
-                                  src={project.livePreviewUrl as string} 
-                                  className="pointer-events-none h-full w-full border-none opacity-90 transition-opacity duration-[1.2s] group-hover/identity:opacity-100" 
-                                  tabIndex={-1} 
-                                  loading="lazy"
-                                />
-                              </div>
-                            ) : "previewImage" in project && project.previewImage ? (
-                               <img 
-                                 src={project.previewImage as string} 
-                                 alt={`${project.title} Preview`}
-                                 className="pointer-events-none absolute left-0 top-0 h-full w-full scale-[1.02] object-cover object-top opacity-85 transition-all duration-[1.2s] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover/identity:scale-[1.06] group-hover/identity:opacity-100" 
-                               />
-                            ) : null}
-                            
-                            {/* Holographic Security Overlays */}
-                            <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(rgba(229,9,20,0.05)_1px,transparent_1px),linear-gradient(90deg,rgba(229,9,20,0.05)_1px,transparent_1px)] bg-[size:24px_24px]" />
-                            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 sm:from-black/90 via-transparent to-transparent opacity-80" />
-                            <div className="pointer-events-none absolute inset-0 mix-blend-overlay shadow-[inset_0_0_40px_rgba(229,9,20,0.2)] sm:shadow-[inset_0_0_80px_rgba(229,9,20,0.3)]" />
-                            
-                            {/* Animated Glass Sweep */}
-                            <div className="pointer-events-none absolute -inset-full z-20 block h-[300%] w-[50%] -translate-x-[150%] -rotate-45 bg-gradient-to-r from-transparent via-white/5 to-transparent transition-transform duration-[2s] ease-in-out group-hover/identity:translate-x-[350%]" />
-
-                            {/* Animated Scanline */}
-                            <div className="pointer-events-none absolute inset-0 -translate-y-full bg-gradient-to-b from-transparent via-blood/20 to-transparent opacity-0 transition-all duration-[2.5s] ease-in-out group-hover/identity:translate-y-full group-hover/identity:opacity-100" />
-                          </div>
-                          
-                          {/* Panel Footer */}
-                          <div className="absolute bottom-0 left-0 z-30 flex w-full shrink-0 justify-between border-t border-blood/20 bg-ink/90 px-5 py-2.5 font-mono text-[9px] uppercase tracking-widest text-bone/50 backdrop-blur-md">
-                             <span>{t('projects.terminalFooterSec')}</span>
-                             <span className="text-blood">{t('projects.terminalFooterStatus')}</span>
-                          </div>
-                          
-                          {/* Corner Target Brackets */}
-                          <div className="pointer-events-none absolute left-0 top-0 z-40 h-6 w-6 rounded-tl-xl border-l-2 border-t-2 border-blood/50 transition-colors duration-700 group-hover/identity:border-blood" />
-                          <div className="pointer-events-none absolute right-0 top-0 z-40 h-6 w-6 rounded-tr-xl border-r-2 border-t-2 border-blood/50 transition-colors duration-700 group-hover/identity:border-blood" />
-                          <div className="pointer-events-none absolute bottom-0 left-0 z-40 h-6 w-6 rounded-bl-xl border-b-2 border-l-2 border-blood/50 transition-colors duration-700 group-hover/identity:border-blood" />
-                          <div className="pointer-events-none absolute bottom-0 right-0 z-40 h-6 w-6 rounded-br-xl border-b-2 border-r-2 border-blood/50 transition-colors duration-700 group-hover/identity:border-blood" />
-                       </div>
-                    </motion.div>
-                  ) : (
-                    <motion.div
-                      className="absolute inset-0"
-                      style={{ background: project.image } as CSSProperties}
-                      whileHover={{ scale: 1.08, rotate: -1 }}
-                      transition={{ duration: 0.5 }}
-                    />
-                  )}
-                  <div className="pointer-events-none absolute inset-0 halftone opacity-30 mix-blend-multiply" />
-                  <div className="pointer-events-none absolute left-3 top-3 sm:left-5 sm:top-5 z-10 bg-bone px-3 py-1 sm:px-4 sm:py-2 font-display text-xl sm:text-3xl uppercase text-ink shadow-redline">
-                    0{(projects.findIndex(p => p.title === project.title) + 1)}
-                  </div>
-                  <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-6 sm:h-10 md:h-14 lg:h-20 -skew-y-1 sm:-skew-y-2 lg:-skew-y-3 bg-blood opacity-80 sm:opacity-95 lg:opacity-100 transition-all duration-300" />
-                </div>
-                
-                {/* Right Side: Text & Actions */}
-                <div className="relative flex flex-col justify-between p-4 sm:p-7 md:p-10 overflow-y-auto lg:overflow-visible">
-                  <div>
-                    {/* Primary Category (Emphasized) */}
-                    <div className="mb-2 sm:mb-4 inline-block border-2 border-blood bg-blood/10 px-3 py-1 sm:px-4 sm:py-1.5 shadow-[0_0_15px_rgba(229,9,20,0.2)]">
-                      <span className="font-display text-sm sm:text-lg uppercase tracking-[0.2em] text-blood">
-                        [ {"category" in project ? (project.category === "Locked" ? t('about.classified') : project.category) : t('about.classified')} ]
-                      </span>
-                    </div>
-
-                    {/* Secondary Tags */}
-                    <div className="mb-3 sm:mb-6 flex flex-wrap gap-1.5 sm:gap-2">
-                      {project.tags[lang as keyof typeof project.tags].map((tag: string) => (
-                        <span key={tag} className="border border-bone/25 px-2 py-0.5 sm:px-3 sm:py-1 text-[9px] sm:text-[11px] uppercase tracking-[0.18em] text-bone/60">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-
-                    <div className="flex items-end justify-between gap-4">
-                      <h3 className="font-display text-3xl sm:text-5xl md:text-7xl lg:text-8xl uppercase leading-none text-bone">{project.title}</h3>
-                      {"year" in project && (
-                         <span className="mb-1 font-display text-sm sm:text-2xl text-bone/40 shrink-0">'{project.year.slice(-2)}</span>
-                      )}
-                    </div>
-                    <p className="mt-3 sm:mt-6 max-w-xl text-xs sm:text-sm md:text-lg leading-relaxed md:leading-8 text-bone/76">{project.description[lang as keyof typeof project.description]}</p>
-                  </div>
-                  <div className="mt-4 sm:mt-8 grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 z-10 w-full">
-                    <a href={project.github} className="inline-flex items-center justify-center gap-1.5 sm:gap-2 border border-bone bg-bone px-3 py-2 sm:px-5 sm:py-3 font-display text-sm sm:text-lg md:text-xl uppercase text-ink transition hover:-translate-y-1 hover:bg-blood hover:text-white">
-                      <Github className="h-4 w-4 sm:h-5 sm:w-5" /> {t('projects.github')}
-                    </a>
-                    <a href={project.demo} className="inline-flex items-center justify-center gap-1.5 sm:gap-2 border border-bone px-3 py-2 sm:px-5 sm:py-3 font-display text-sm sm:text-lg md:text-xl uppercase text-bone transition hover:-translate-y-1 hover:bg-bone hover:text-ink">
-                      <ExternalLink className="h-4 w-4 sm:h-5 sm:w-5" /> {t('projects.viewProject')}
-                    </a>
-                  </div>
-                  <div className="pointer-events-none absolute -right-12 top-6 rotate-12 font-display text-5xl sm:text-8xl uppercase text-blood/10 transition group-hover:scale-110">
-                    {lang === 'id' ? 'EKSEKUSI' : 'EXECUTE'}
-                  </div>
-                </div>
-              </motion.article>
+                <X className="w-4 h-4" />
+              </button>
             )}
-          </AnimatePresence>
+          </div>
         </div>
 
-        {/* Scalable Project Archive */}
-        <div className="mt-32">
-          <SectionHeading kicker={t('projects.kicker')} title={t('projects.archiveTitle')} />
-          <div className="mt-12 border-t-2 border-bone/20">
-            {projects.map((p, idx) => {
-              if ((p as any).locked) {
-                return (
-                  <div 
-                    key={p.title} 
-                    className="group relative flex flex-col justify-between border-b-2 border-bone/10 px-4 py-6 md:flex-row md:items-center bg-ink/40 opacity-70 cursor-not-allowed overflow-hidden transition-colors hover:bg-blood/5"
-                  >
-                    <div className="relative z-10 flex items-center gap-6 md:gap-12">
-                      <span className="font-display text-2xl text-bone/20">
-                        {(idx + 1).toString().padStart(2, '0')}
-                      </span>
-                      <h4 className="font-display text-3xl uppercase text-bone/30 md:text-5xl">
-                        {t("projects.inProgress")}
-                      </h4>
-                    </div>
-                    
-                    <div className="relative z-10 mt-4 flex items-center justify-between md:mt-0 md:justify-end md:gap-12">
-                      <div className="hidden flex-wrap gap-2 md:flex">
-                        <span className="flex items-center gap-2 border border-blood/20 bg-blood/5 px-2 py-1 text-[10px] uppercase tracking-widest text-blood/60">
-                          <span className="h-1 w-1 rounded-full bg-blood animate-pulse" />
-                          {t("projects.locked")}
-                        </span>
-                        <span className="border border-bone/10 px-2 py-1 text-[10px] uppercase tracking-widest text-bone/30">
-                          2026
-                        </span>
-                      </div>
-                      
-                      <div className="flex items-center gap-6">
-                        <span className="font-display text-xl text-bone/20">
-                          '26
-                        </span>
-                        <Lock className="h-6 w-6 text-blood/40" />
-                      </div>
-                    </div>
-                    
-                    <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100 bg-blood/5 backdrop-blur-[1px]">
-                      <span className="font-mono text-sm uppercase tracking-[0.3em] text-blood drop-shadow-[0_0_8px_rgba(229,9,20,0.8)]">
-                        {t("projects.accessDenied")}
-                      </span>
-                    </div>
-                  </div>
-                );
-              }
+        {/* ========================================================
+            FILTER TABS WITH COUNTS
+            ======================================================== */}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-10 pb-4 border-b border-white/10">
+          {categories.map((cat) => {
+            const isActive = activeCategory === cat.id;
+            const count = getCategoryCount(cat.id);
+            const label = lang === "id" ? cat.labelId : cat.labelEn;
 
-              return (
-                <a 
-                  key={p.title} 
-                  href={p.demo} 
-                  className="group flex flex-col justify-between border-b-2 border-bone/20 px-4 py-6 transition-colors hover:bg-blood/5 md:flex-row md:items-center"
+            return (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setActiveCategory(cat.id)}
+                className={`relative inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs sm:text-sm font-medium transition-all cursor-pointer ${
+                  isActive
+                    ? "text-white bg-[#1b0e11] border border-[#ff3838]/60 shadow-[0_0_15px_rgba(255,56,56,0.35)]"
+                    : "text-zinc-400 hover:text-white bg-black/40 border border-white/10 hover:border-white/20"
+                }`}
+              >
+                <KonohaLeafIcon className={`w-3.5 h-3.5 ${isActive ? "text-[#ff3838]" : "text-zinc-500"}`} color="currentColor" />
+                <span>{label}</span>
+                <span
+                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                    isActive ? "bg-[#ff3838]/25 text-[#ff7844]" : "bg-white/10 text-zinc-400"
+                  }`}
                 >
-                  <div className="flex items-center gap-6 md:gap-12">
-                    <span className="font-display text-2xl text-bone/30 transition-colors group-hover:text-blood">
-                      {(idx + 1).toString().padStart(2, '0')}
-                    </span>
-                    <h4 className="font-display text-3xl uppercase text-bone transition-transform group-hover:translate-x-2 md:text-5xl">
-                      {p.title}
-                    </h4>
-                  </div>
-                  
-                  <div className="mt-4 flex items-center justify-between md:mt-0 md:justify-end md:gap-12">
-                    <div className="hidden flex-wrap gap-2 md:flex">
-                      <span className="border border-blood/20 bg-blood/10 px-2 py-1 text-[10px] uppercase tracking-widest text-blood">
-                        {p.category}
-                      </span>
-                      {p.tags[lang as keyof typeof p.tags].slice(0, 2).map((tag: string) => (
-                        <span key={tag} className="border border-bone/20 px-2 py-1 text-[10px] uppercase tracking-widest text-bone/50">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                    
-                    <div className="flex items-center gap-6">
-                      <span className="font-display text-xl text-bone/40 transition-colors group-hover:text-blood">
-                        '{p.year?.slice(-2) || "XX"}
-                      </span>
-                      <ExternalLink className="h-6 w-6 text-bone/20 transition-transform group-hover:-translate-y-1 group-hover:translate-x-1 group-hover:text-blood" />
-                    </div>
-                  </div>
-                </a>
-              );
-            })}
+                  {count}
+                </span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeProjFilter"
+                    className="absolute inset-0 rounded-full border border-[#ff3838] pointer-events-none"
+                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ========================================================
+            LIVE PROJECT SHOWCASE GRID
+            ======================================================== */}
+        {filteredProjects.length === 0 ? (
+          <div className="py-20 text-center flex flex-col items-center justify-center p-6 rounded-2xl bg-[#120a0d]/40 border border-white/10">
+            <SealingStamp label="無" className="w-16 h-16 opacity-60 mb-3" />
+            <h4 className="text-lg font-bold text-white font-display">
+              {lang === "id" ? "Proyek Tidak Ditemukan" : "No Projects Found"}
+            </h4>
+            <p className="mt-1 text-xs text-zinc-400 max-w-sm">
+              {lang === "id"
+                ? `Tidak ada proyek yang sesuai dengan kueri "${searchQuery}". Coba reset kata kunci.`
+                : `No project matched "${searchQuery}". Try adjusting your keywords.`}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearchQuery("");
+                setActiveCategory("All");
+              }}
+              className="mt-4 px-4 py-2 rounded-xl text-xs font-mono font-medium text-white bg-[#ff3838]/20 hover:bg-[#ff3838] border border-[#ff3838]/40 transition-all cursor-pointer"
+            >
+              {lang === "id" ? "Reset Filter" : "Reset Filter"}
+            </button>
           </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-10">
+            <AnimatePresence mode="popLayout">
+              {filteredProjects.map((project, idx) => {
+                const isInteractive = Boolean(interactiveCards[project.id]);
+                const isIframeLoaded = Boolean(loadedIframes[project.id]);
+
+                return (
+                  <motion.article
+                    key={project.id}
+                    layout
+                    initial={{ opacity: 0, y: 30 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.4, delay: idx * 0.08 }}
+                    className="group relative flex flex-col justify-between overflow-hidden rounded-2xl bg-[#120a0d]/90 border border-[#ff3838]/20 hover:border-[#ff3838]/70 p-5 sm:p-7 shadow-[0_10px_35px_rgba(0,0,0,0.75)] hover:shadow-[0_0_40px_rgba(255,56,56,0.25)] backdrop-blur-xl transition-all duration-300"
+                  >
+                    {/* Ninja Scroll Corner Accents */}
+                    <div className="pointer-events-none absolute top-0 left-0 h-4 w-4 border-t-2 border-l-2 border-[#ff3838]/40 group-hover:border-[#ff3838] transition-colors" />
+                    <div className="pointer-events-none absolute top-0 right-0 h-4 w-4 border-t-2 border-r-2 border-[#ff3838]/40 group-hover:border-[#ff3838] transition-colors" />
+                    <div className="pointer-events-none absolute bottom-0 left-0 h-4 w-4 border-b-2 border-l-2 border-[#ff3838]/40 group-hover:border-[#ff3838] transition-colors" />
+                    <div className="pointer-events-none absolute bottom-0 right-0 h-4 w-4 border-b-2 border-r-2 border-[#ff3838]/40 group-hover:border-[#ff3838] transition-colors" />
+
+                    {/* Background Watermark */}
+                    <div className="absolute -bottom-8 -right-8 text-[#ff3838] opacity-5 group-hover:opacity-10 transition-opacity pointer-events-none">
+                      <CloudWatermark className="w-56 h-36" color="currentColor" />
+                    </div>
+
+                    <div>
+                      {/* Card Header: Chapter, Status & Live Badge */}
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-[#ff3838]/15 border border-[#ff3838]/30 text-[#ff7844]">
+                            <KonohaLeafIcon className="w-3 h-3 text-[#ff3838]" color="#ff3838" />
+                            <span>{project.chapter}</span>
+                          </span>
+
+                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono tracking-wider uppercase bg-emerald-500/15 border border-emerald-500/40 text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                            <span>{project.status}</span>
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <SealingStamp
+                            label={project.sealKanji}
+                            className="w-7 h-7 text-[11px] opacity-75 group-hover:opacity-100 transition-opacity"
+                          />
+                        </div>
+                      </div>
+
+                      {/* ========================================================
+                          PROMINENT LIVE WEBSITE PREVIEW CONTAINER
+                          Browser-chrome frame with live iframe + fallback screenshot
+                          ======================================================== */}
+                      <div className="relative w-full rounded-xl overflow-hidden bg-black/90 border border-white/10 group-hover:border-[#ff3838]/50 shadow-2xl transition-all duration-300 mb-5">
+                        {/* Browser Chrome Header */}
+                        <div className="flex items-center justify-between px-3.5 py-2 bg-[#180e12] border-b border-white/10 text-xs font-mono select-none">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#ff3838]/80" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-[#ff7844]/80" />
+                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                          </div>
+
+                          {/* Address Bar Pill */}
+                          <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-0.5 rounded-full bg-black/60 border border-white/10 text-[10px] sm:text-[11px] text-zinc-300 max-w-[130px] sm:max-w-[260px] md:max-w-[300px] truncate">
+                            <Globe className="w-3 h-3 text-[#ff7844] shrink-0" />
+                            <span className="truncate">{project.url.replace(/^https?:\/\//, '')}</span>
+                          </div>
+
+                          {/* Controls: Interactive Mode & Expand */}
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => toggleInteractive(project.id, e)}
+                              className={`p-1 rounded text-[10px] flex items-center gap-1 transition-colors cursor-pointer ${
+                                isInteractive
+                                  ? "bg-[#ff3838] text-white"
+                                  : "text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10"
+                              }`}
+                              title={isInteractive ? "Disable interactive scroll" : "Enable interactive clicks inside preview"}
+                            >
+                              <MousePointer2 className="w-3 h-3" />
+                              <span className="hidden sm:inline">{isInteractive ? "Interactive" : "Static"}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedProject(project)}
+                              className="p-1 rounded text-zinc-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                              title="Expand Full Preview"
+                              aria-label="Expand Preview"
+                            >
+                              <Maximize2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Viewport Frame (Aspect Ratio 16/10) */}
+                        <div className="relative w-full aspect-[16/10] bg-[#0c0709] overflow-hidden flex items-center justify-center">
+                          {/* Fallback & Initial Screenshot (Zero layout shift) */}
+                          <img
+                            src={project.previewImage}
+                            alt={`${project.title} live screenshot`}
+                            className={`absolute inset-0 w-full h-full object-cover object-top transition-opacity duration-700 ${
+                              isIframeLoaded ? "opacity-0 pointer-events-none" : "opacity-100"
+                            }`}
+                            loading="lazy"
+                          />
+
+                          {/* Embedded Live Iframe */}
+                          <iframe
+                            src={project.url}
+                            title={`${project.title} live preview`}
+                            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                            loading="lazy"
+                            onLoad={() => {
+                              setLoadedIframes((prev) => ({ ...prev, [project.id]: true }));
+                            }}
+                            className={`w-full h-full border-none transition-opacity duration-700 ${
+                              isIframeLoaded ? "opacity-100" : "opacity-0"
+                            } ${isInteractive ? "pointer-events-auto" : "pointer-events-none"}`}
+                          />
+
+                          {/* Scroll Shield & Hover Interaction Overlay when not in interactive mode */}
+                          {!isInteractive && (
+                            <div
+                              onClick={() => setSelectedProject(project)}
+                              className="absolute inset-0 bg-transparent hover:bg-black/20 transition-colors cursor-pointer flex items-center justify-center group/shield"
+                              title="Click to expand preview modal or toggle interactive mode"
+                            >
+                              <div className="opacity-0 group-hover/shield:opacity-100 transition-opacity px-3.5 py-1.5 rounded-full bg-black/85 backdrop-blur-md border border-[#ff3838]/50 text-xs font-mono text-white shadow-xl flex items-center gap-2">
+                                <Maximize2 className="w-3.5 h-3.5 text-[#ff7844]" />
+                                <span>{lang === "id" ? "Buka Preview Layar Penuh" : "Click to Expand Preview"}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Project Title & Tagline */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-display text-2xl sm:text-3xl lg:text-4xl uppercase leading-tight tracking-wide text-white group-hover:text-[#ff6b6b] transition-colors">
+                            {project.title}
+                          </h3>
+                          <p className="mt-1 text-xs sm:text-sm font-mono text-[#ff7844]">
+                            {project.tagline[lang as "en" | "id"]}
+                          </p>
+                        </div>
+                        <span className="font-display text-xl text-zinc-500 shrink-0">
+                          '{project.year.slice(-2)}
+                        </span>
+                      </div>
+
+                      {/* Project Description */}
+                      <p className="mt-3.5 text-xs sm:text-sm leading-relaxed text-zinc-300">
+                        {project.description[lang as "en" | "id"]}
+                      </p>
+
+                      {/* Main Verified Features */}
+                      <div className="mt-4 pt-3 border-t border-white/10 flex flex-col gap-1.5">
+                        <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400">
+                          {lang === "id" ? "Fitur & Kapabilitas Utama:" : "Core Capabilities & Features:"}
+                        </span>
+                        <ul className="flex flex-col gap-1 text-xs font-mono text-zinc-300">
+                          {project.features[lang as "en" | "id"].map((feat, fIdx) => (
+                            <li key={fIdx} className="flex items-start gap-2">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#ff3838] shrink-0 mt-1.5" />
+                              <span className="leading-snug">{feat}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
+                    {/* Card Footer: Tech Stack Tags & Action Buttons */}
+                    <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-3.5">
+                      {/* Tech Tags */}
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {project.tags[lang as "en" | "id"].map((tag, tIdx) => (
+                          <span
+                            key={tIdx}
+                            className="text-[10px] font-mono px-2.5 py-0.5 rounded bg-white/5 border border-white/10 text-zinc-400"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-between gap-3 pt-1">
+                        <a
+                          href={project.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-mono font-semibold text-white bg-gradient-to-r from-[#ff3838] to-[#e52e2e] shadow-[0_0_15px_rgba(255,56,56,0.4)] hover:scale-105 transition-all"
+                        >
+                          <span>{lang === "id" ? "Kunjungi Website Langsung" : "View Live Project"}</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => setSelectedProject(project)}
+                          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-mono text-zinc-300 hover:text-white bg-white/5 hover:bg-white/15 border border-white/10 transition-colors cursor-pointer"
+                        >
+                          <Maximize2 className="w-3.5 h-3.5 text-[#ff7844]" />
+                          <span>{lang === "id" ? "Detail Lengkap" : "Full Preview"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  </motion.article>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+
+        {/* Section Bottom Shinobi Note */}
+        <div className="mt-14 sm:mt-18 p-5 sm:p-6 rounded-2xl bg-[#110a0c]/60 border border-[#ff3838]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#ff3838]/10 border border-[#ff3838]/30 flex items-center justify-center text-[#ff3838] shrink-0">
+              <Layers className="w-5 h-5 text-[#ff7844]" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold text-white">
+                {lang === "id"
+                  ? "Arsitektur Produksi & Eksplorasi Nyata"
+                  : "Production Deployments & Verified Codebases"}
+              </span>
+              <span className="text-xs text-zinc-400">
+                {lang === "id"
+                  ? "Seluruh proyek di atas dapat diakses langsung secara onchain dan publik. Ingin berkolaborasi atau mendiskusikan integrasi?"
+                  : "All five projects above are live, interactive, and verifiable onchain. Interested in collaborating or building together?"}
+              </span>
+            </div>
+          </div>
+
+          <a
+            href="#contact"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-mono font-medium text-white bg-[#ff3838]/20 hover:bg-[#ff3838] border border-[#ff3838]/40 transition-all hover:scale-105 shrink-0"
+          >
+            <span>{lang === "id" ? "Bahas Proyek Bareng ↗" : "Let's Build Together ↗"}</span>
+          </a>
         </div>
       </div>
+
+      {/* ========================================================
+          FULL PROJECT PREVIEW LIGHTBOX MODAL
+          ======================================================== */}
+      <AnimatePresence>
+        {selectedProject && (
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-2 sm:p-6">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedProject(null)}
+              className="absolute inset-0 bg-black/90 backdrop-blur-md"
+            />
+
+            {/* Modal Dialog */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 20 }}
+              transition={{ duration: 0.25 }}
+              className="relative w-full max-w-5xl max-h-[94vh] overflow-y-auto rounded-2xl bg-[#120a0d] border border-[#ff3838]/50 p-4 sm:p-7 shadow-[0_20px_60px_rgba(0,0,0,0.95),0_0_40px_rgba(255,56,56,0.3)] z-10 scrollbar-thin scrollbar-thumb-zinc-700 flex flex-col gap-5"
+            >
+              {/* Header Controls */}
+              <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-mono font-bold bg-[#ff3838]/15 border border-[#ff3838]/30 text-[#ff7844]">
+                    <KonohaLeafIcon className="w-3 h-3 text-[#ff3838]" color="#ff3838" />
+                    <span>{selectedProject.chapter}</span>
+                  </span>
+                  <h3 className="text-lg sm:text-2xl font-bold text-white font-display uppercase tracking-wide">
+                    {selectedProject.title}
+                  </h3>
+                  <span className="hidden sm:inline-flex text-xs font-mono text-zinc-400">
+                    • {selectedProject.tagline[lang as "en" | "id"]}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <a
+                    href={selectedProject.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-1.5 rounded-lg bg-[#ff3838]/20 hover:bg-[#ff3838] text-white border border-[#ff3838]/40 transition-colors text-xs font-mono flex items-center gap-1.5"
+                    title="Open in new window"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Launch Site</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProject(null)}
+                    className="p-1.5 rounded-lg bg-white/5 hover:bg-[#ff3838]/20 text-zinc-400 hover:text-white border border-white/10 transition-colors cursor-pointer"
+                    aria-label="Close Preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Large Live Interactive Preview */}
+              <div className="relative w-full rounded-xl overflow-hidden bg-black border border-white/10 shadow-2xl">
+                {/* Browser bar */}
+                <div className="flex items-center justify-between px-4 py-2 bg-[#180e12] border-b border-white/10 text-xs font-mono">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff3838]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff7844]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  </div>
+
+                  <div className="flex items-center gap-2 px-3.5 py-0.5 rounded-full bg-black/60 border border-white/10 text-xs text-zinc-300">
+                    <Globe className="w-3 h-3 text-[#ff7844]" />
+                    <span>{selectedProject.url}</span>
+                  </div>
+
+                  <span className="text-[10px] text-emerald-400 font-mono">
+                    ● {selectedProject.status}
+                  </span>
+                </div>
+
+                {/* Big Iframe Viewer */}
+                <div className="relative w-full aspect-[16/10] sm:aspect-[16/9] min-h-[360px] sm:min-h-[480px] bg-[#0a0507]">
+                  <iframe
+                    src={selectedProject.url}
+                    title={`${selectedProject.title} interactive modal preview`}
+                    sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+                    loading="lazy"
+                    className="w-full h-full border-none"
+                  />
+                </div>
+              </div>
+
+              {/* Detailed Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div className="md:col-span-2 flex flex-col gap-3">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#ff7844]">
+                    {lang === "id" ? "Deskripsi & Arsitektur Sistem" : "System Architecture & Description"}
+                  </span>
+                  <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
+                    {selectedProject.description[lang as "en" | "id"]}
+                  </p>
+
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {selectedProject.tags[lang as "en" | "id"].map((tag, idx) => (
+                      <span
+                        key={idx}
+                        className="text-xs font-mono px-2.5 py-1 rounded bg-[#ff3838]/10 border border-[#ff3838]/30 text-zinc-200"
+                      >
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-black/50 border border-white/10 flex flex-col justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-white block mb-2">
+                      {lang === "id" ? "Fitur Utama" : "Key Capabilities"}
+                    </span>
+                    <ul className="flex flex-col gap-1.5 text-xs font-mono text-zinc-300">
+                      {selectedProject.features[lang as "en" | "id"].map((feat, idx) => (
+                        <li key={idx} className="flex items-start gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span className="leading-snug">{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <a
+                    href={selectedProject.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full mt-3 inline-flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-[#ff3838] hover:bg-[#e52e2e] text-white font-mono font-semibold text-xs transition-colors"
+                  >
+                    <span>{lang === "id" ? "Buka di Tab Baru" : "Launch Website"}</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </section>
   );
 }

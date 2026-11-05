@@ -1,29 +1,71 @@
 "use client";
 
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { navItems } from "@/lib/data";
+import { Menu, X, ArrowUpRight } from "lucide-react";
 import { useLanguage } from "@/lib/i18n/LanguageContext";
+import { useIntro } from "@/components/intro/IntroContext";
 import { LanguageToggle } from "./LanguageToggle";
-import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { KonohaLeafIcon } from "./ornaments/KonohaIcons";
 
 export function FloatingNav() {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("home");
+  const { phase, isComplete } = useIntro();
 
+  const navVisible = isComplete || phase === "transition";
+
+  // Exact synchronized navigation order
+  const navLinks = [
+    { id: "home", label: "Home" },
+    { id: "about", label: "About" },
+    { id: "skills", label: "Skills" },
+    { id: "credentials", label: "Credentials" },
+    { id: "blog", label: "Blog" },
+    { id: "projects", label: "Projects" },
+  ];
+
+  // Track active section on scroll with height and navbar compensation
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const handleScroll = () => {
+      const scrollPosition = window.scrollY;
+      const windowHeight = window.innerHeight;
+      const documentHeight = document.documentElement.scrollHeight;
 
-    const handleResize = () => {
-      if (window.innerWidth >= 768) {
-        setIsOpen(false);
+      // Top of page: Home is always active
+      if (scrollPosition < 120) {
+        setActiveSection("home");
+        return;
       }
+
+      // Bottom of page: Projects is active
+      if (scrollPosition + windowHeight >= documentHeight - 100) {
+        setActiveSection("projects");
+        return;
+      }
+
+      // Focal point: 35% down viewport (below floating navbar)
+      const targetOffset = scrollPosition + windowHeight * 0.35;
+      const navIds = ["home", "about", "skills", "credentials", "blog", "projects"];
+
+      let current = "home";
+      for (const id of navIds) {
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= targetOffset) {
+          current = id;
+        }
+      }
+
+      setActiveSection(current);
     };
 
-    window.addEventListener("resize", handleResize, { passive: true });
-    return () => window.removeEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Lock scroll on mobile menu open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = "hidden";
@@ -35,142 +77,170 @@ export function FloatingNav() {
     };
   }, [isOpen]);
 
-  const menuVariants = {
-    closed: {
-      opacity: 0,
-      x: "100%",
-      transition: {
-        duration: 0.4,
-        ease: [0.16, 1, 0.3, 1],
-        staggerChildren: 0.05,
-        staggerDirection: -1,
-      },
+  // Smooth scroll handler accounting for floating navbar height
+  const handleNavClick = useCallback(
+    (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+      e.preventDefault();
+      const el = document.getElementById(id);
+      if (el) {
+        const navbarHeight = 85;
+        const top = el.getBoundingClientRect().top + window.scrollY - navbarHeight;
+        window.scrollTo({
+          top: Math.max(0, top),
+          behavior: "smooth",
+        });
+        setActiveSection(id);
+        setIsOpen(false);
+      }
     },
-    open: {
-      opacity: 1,
-      x: 0,
-      transition: {
-        duration: 0.5,
-        ease: [0.16, 1, 0.3, 1],
-        staggerChildren: 0.08,
-      },
-    },
-  };
-
-  const itemVariants = {
-    closed: { x: 50, opacity: 0 },
-    open: { x: 0, opacity: 1, transition: { duration: 0.3, ease: "easeOut" } },
-  };
+    []
+  );
 
   return (
     <>
-      {/* 1. Dedicated Mobile Header Bar (Cyberpunk Red Border & Safe Area Support) */}
-      <div 
-        className="fixed top-0 left-0 right-0 z-[100] flex md:hidden h-16 w-full items-center justify-between border-b border-blood/30 bg-ink/90 px-5 shadow-redline backdrop-blur-xl pt-[env(safe-area-inset-top)]" 
-        aria-label="Mobile navigation header"
+      {/* Primary Floating Island Navbar */}
+      <motion.header
+        initial={{ y: -70, opacity: 0 }}
+        animate={{ y: navVisible ? 0 : -70, opacity: navVisible ? 1 : 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        className="fixed top-4 sm:top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
       >
-        {/* Mobile Left Identity HUD */}
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-blood animate-pulse shadow-[0_0_8px_rgba(229,9,20,0.8)]" />
-          <span className="font-display text-xs uppercase tracking-[0.25em] text-bone">
-            0X / SAM
-          </span>
-        </div>
-
-        {/* Mobile Right Controls */}
-        <div className="flex items-center gap-3">
-          <LanguageToggle />
+        <div className="pointer-events-auto flex items-center justify-between w-full max-w-5xl px-4 sm:px-6 py-2.5 rounded-full bg-[#110c0d]/75 border border-white/10 shadow-[0_10px_35px_rgba(0,0,0,0.6),0_0_20px_rgba(229,46,46,0.18)] backdrop-blur-xl">
           
-          {/* Tactical Hamburger Trigger */}
-          <button
-            onClick={() => setIsOpen(true)}
-            className="flex h-10 w-10 items-center justify-center border border-blood/40 bg-blood/10 text-blood shadow-[0_0_10px_rgba(229,9,20,0.15)] transition hover:bg-blood hover:text-white"
-            aria-label="Open mobile portal"
-          >
-            <Menu size={20} />
-          </button>
-        </div>
-      </div>
-
-      {/* 2. Primary Floating Nav Bar (Desktop Only - Hidden on Mobile) */}
-      <motion.nav
-        initial={{ y: -80, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 3, type: "spring", stiffness: 130, damping: 15 }}
-        className="fixed left-1/2 top-4 z-50 hidden md:flex w-auto -translate-x-1/2 items-center justify-center gap-1 border border-bone/20 bg-ink/80 px-2 py-2 shadow-redline backdrop-blur-xl"
-        aria-label="Primary desktop navigation"
-      >
-        {navItems.map((item) => (
+          {/* Left Brand Identity: Konoha Badge + PamanSam */}
           <a
-            key={item}
-            href={`#${item}`}
-            className="group relative overflow-hidden px-3 py-2 font-display text-sm uppercase tracking-[0.16em] text-bone/70 transition hover:text-white"
+            href="#home"
+            onClick={(e) => handleNavClick(e, "home")}
+            className="flex items-center gap-3 group"
           >
-            <span className="relative z-10">{t(`nav.${item}`)}</span>
-            <span className="absolute inset-0 -z-0 translate-y-full bg-blood transition-transform duration-200 group-hover:translate-y-0" />
+            <div className="relative flex items-center justify-center w-9 h-9 rounded-full bg-black/60 border border-[#ff3838]/40 shadow-[0_0_12px_rgba(255,56,56,0.4)] group-hover:border-[#ff3838] group-hover:shadow-[0_0_20px_rgba(255,56,56,0.7)] transition-all">
+              <KonohaLeafIcon className="w-5 h-5 text-[#ff3838] group-hover:scale-110 transition-transform" color="#ff3838" />
+              <div className="absolute inset-0 rounded-full bg-[#ff3838]/10 opacity-0 group-hover:opacity-100 transition-opacity blur-[2px]" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm sm:text-base font-semibold tracking-tight text-white group-hover:text-[#ff6b6b] transition-colors leading-tight flex items-center gap-1.5">
+                <span>Paman<span className="text-[#ff3838]">Sam</span></span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#ff3838]/15 border border-[#ff3838]/30 text-[#ff7844] font-mono">忍</span>
+              </span>
+              <span className="text-[10px] text-zinc-400 font-mono tracking-wider -mt-0.5">
+                0xSam • Konoha Grid
+              </span>
+            </div>
           </a>
-        ))}
-        <div className="ml-2 pl-2 border-l border-bone/20">
-          <LanguageToggle />
-        </div>
-      </motion.nav>
 
-      {/* 3. Fullscreen Cinematic Cyberpunk Mobile Portal Menu */}
+          {/* Center Navigation Links (Desktop) */}
+          <nav className="hidden md:flex items-center gap-1 sm:gap-1.5 lg:gap-2">
+            {navLinks.map((link) => {
+              const isActive = activeSection === link.id;
+              return (
+                <a
+                  key={link.id}
+                  href={`#${link.id}`}
+                  onClick={(e) => handleNavClick(e, link.id)}
+                  className={`relative px-3 sm:px-3.5 py-1.5 text-xs sm:text-sm font-medium transition-all ${
+                    isActive ? "text-white" : "text-zinc-400 hover:text-white"
+                  }`}
+                >
+                  {link.label}
+                  {isActive && (
+                    <motion.div
+                      layoutId="activeNavIndicator"
+                      className="absolute bottom-0 left-3 right-3 h-[2px] bg-gradient-to-r from-[#ff3838] via-[#ff7675] to-[#ff3838] shadow-[0_0_10px_rgba(255,56,56,0.9)]"
+                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
+                    >
+                      <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#ff7844] shadow-[0_0_6px_#ff3838]" />
+                    </motion.div>
+                  )}
+                </a>
+              );
+            })}
+          </nav>
+
+          {/* Right Action: Language Toggle & "Let's Build ↗" Button */}
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <LanguageToggle />
+
+            <a
+              href="#contact"
+              onClick={(e) => handleNavClick(e, "contact")}
+              className="hidden sm:inline-flex items-center gap-1.5 px-4 sm:px-5 py-1.5 rounded-full text-xs sm:text-sm font-semibold text-white border border-[#ff3838]/60 bg-gradient-to-r from-[#ff3838]/30 via-[#e52e2e]/25 to-[#ff7844]/20 hover:from-[#ff3838] hover:via-[#e52e2e] hover:to-[#ff7844] shadow-[0_0_15px_rgba(255,56,56,0.35)] hover:shadow-[0_0_25px_rgba(255,56,56,0.7)] transition-all hover:scale-105 cursor-pointer"
+            >
+              <span>Let&apos;s Build</span>
+              <ArrowUpRight className="w-3.5 h-3.5 text-[#ff7675]" />
+            </a>
+
+            {/* Mobile Hamburger Trigger */}
+            <button
+              onClick={() => setIsOpen(true)}
+              className="flex md:hidden p-2 rounded-full border border-white/10 bg-black/40 text-zinc-300 hover:text-white hover:border-[#ff3838]/50 transition"
+              aria-label="Open Navigation Menu"
+            >
+              <Menu size={18} />
+            </button>
+          </div>
+        </div>
+      </motion.header>
+
+      {/* Mobile Drawer / Portal */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            initial="closed"
-            animate="open"
-            exit="closed"
-            variants={menuVariants}
-            className="fixed inset-0 z-[250] flex flex-col justify-between bg-ink/98 p-8 pt-[calc(2.5rem+env(safe-area-inset-top))] backdrop-blur-2xl md:hidden border-l-4 border-blood"
+            initial={{ opacity: 0, x: "100%" }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: "100%" }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="fixed inset-0 z-[260] flex flex-col justify-between bg-[#0e090a]/98 p-6 pt-10 backdrop-blur-2xl md:hidden border-l border-[#ff3838]/30 overflow-y-auto"
           >
-            {/* Tactical Grid Background lines */}
-            <div className="absolute inset-0 z-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:32px_32px] pointer-events-none" />
+            {/* Ambient Background Glow */}
+            <div className="absolute top-1/4 right-0 w-64 h-64 bg-[#ff3838]/10 rounded-full blur-[90px] pointer-events-none" />
 
-            {/* Fullscreen Overlay Header */}
-            <div className="relative z-10 flex items-center justify-between border-b border-bone/10 pb-6">
-              <div className="flex flex-col">
-                <span className="font-display text-2xl tracking-[0.25em] text-blood">
-                  SYSTEM_PORTAL
-                </span>
-                <span className="font-mono text-[9px] tracking-widest text-bone/40 uppercase mt-0.5">
-                  SECURE NET DIRECTIVE // 0XSAM
-                </span>
+            {/* Header */}
+            <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-5">
+              <div className="flex items-center gap-2.5">
+                <KonohaLeafIcon className="w-5 h-5 text-[#ff3838]" color="#ff3838" />
+                <span className="font-semibold text-white tracking-tight">PamanSam Portfolio</span>
               </div>
               <button
                 onClick={() => setIsOpen(false)}
-                className="flex h-10 w-10 items-center justify-center border border-blood bg-blood/10 text-blood shadow-redline transition hover:bg-blood hover:text-white"
+                className="p-2.5 rounded-full border border-[#ff3838]/40 bg-[#ff3838]/10 text-white min-w-[44px] min-h-[44px] flex items-center justify-center cursor-pointer"
                 aria-label="Close menu"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            {/* Tactical Portal Menu Link Elements */}
-            <div className="relative z-10 my-auto flex flex-col gap-6 pl-4">
-              {navItems.map((item, index) => (
-                <motion.div key={item} variants={itemVariants}>
-                  <a
-                    href={`#${item}`}
-                    onClick={() => setIsOpen(false)}
-                    className="group flex items-baseline gap-4 py-2 font-display text-4xl uppercase tracking-[0.2em] text-bone/60 transition hover:text-blood"
-                  >
-                    <span className="font-mono text-xs text-blood">
-                      {String(index + 1).padStart(2, "0")}.
-                    </span>
-                    <span className="glitch group-hover:text-bone" data-text={t(`nav.${item}`)}>
-                      {t(`nav.${item}`)}
-                    </span>
-                  </a>
-                </motion.div>
+            {/* Nav Links */}
+            <div className="relative z-10 my-auto flex flex-col gap-3 sm:gap-4 pl-2 py-4">
+              {navLinks.map((link, idx) => (
+                <a
+                  key={link.id}
+                  href={`#${link.id}`}
+                  onClick={(e) => handleNavClick(e, link.id)}
+                  className={`flex items-center gap-3 text-2xl font-display uppercase tracking-wider transition-colors min-h-[44px] py-1 ${
+                    activeSection === link.id ? "text-[#ff4d4d]" : "text-zinc-300 hover:text-[#ff4d4d]"
+                  }`}
+                >
+                  <span className="text-xs font-mono text-[#ff3838]/70">0{idx + 1}.</span>
+                  <span>{link.label}</span>
+                  {activeSection === link.id && (
+                    <span className="text-xs text-[#ff3838] font-mono ml-auto mr-4">• ACTIVE</span>
+                  )}
+                </a>
               ))}
+              <a
+                href="#contact"
+                onClick={(e) => handleNavClick(e, "contact")}
+                className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-base font-semibold text-white bg-gradient-to-r from-[#ff3838] to-[#e52e2e] shadow-[0_0_20px_rgba(255,56,56,0.4)]"
+              >
+                <span>Let&apos;s Build</span>
+                <ArrowUpRight className="w-4 h-4" />
+              </a>
             </div>
 
-            {/* Fullscreen Overlay Footer */}
-            <div className="relative z-10 border-t border-bone/10 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 font-mono text-[10px] tracking-[0.2em] text-bone/30 uppercase">
-              <span>STATUS: SECURE GATEWAY ENCRYPTED</span>
-              <span>ALL SYSTEMS NOMINAL // {new Date().getFullYear()}</span>
+            {/* Footer */}
+            <div className="relative z-10 border-t border-white/10 pt-4 text-xs font-mono text-zinc-500 flex justify-between">
+              <span>KONOHA SECURE NET</span>
+              <span>© {new Date().getFullYear()} PAMANSAM</span>
             </div>
           </motion.div>
         )}
